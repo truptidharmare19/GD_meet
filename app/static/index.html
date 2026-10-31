@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111827">
+    <title>GD Meet | Group discussion room</title>
+    <link rel="stylesheet" href="/static/style.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="GD Meet home"><span class="brand-mark">G</span> GD Meet</a>
+        <span class="prototype-tag">PYTHON PROTOTYPE</span>
+      </header>
+
+      <section class="intro">
+        <p class="eyebrow">PRACTICE TOGETHER</p>
+        <h1>Make every discussion<br><span>count.</span></h1>
+        <p class="intro-copy">Create a meeting and share one link. Your moderator will welcome the group, introduce the topic, listen quietly, and prepare the transcript and report when you end the discussion.</p>
+      </section>
+
+      <section class="panel setup-panel" id="setup">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">GET STARTED</p>
+            <h2 id="setup-title">Create a discussion</h2>
+          </div>
+          <span class="step-badge">01</span>
+        </div>
+        <label for="participant-name">Your name</label>
+        <input id="participant-name" maxlength="40" placeholder="e.g. Alex" autocomplete="name">
+        <div id="create-fields">
+          <p class="privacy-note">The moderator will choose and announce a discussion topic after you start the meeting.</p>
+          <p class="privacy-note">Speech recognition runs in each participant's browser and may be processed by the browser provider. When you end the meeting, the resulting text transcript is sent to Google Gemini for feedback. Avoid sharing sensitive personal information.</p>
+          <div class="actions">
+            <button class="button button-primary" id="create-room">Create meeting <span aria-hidden="true">→</span></button>
+          </div>
+        </div>
+        <div id="join-fields" class="hidden">
+          <p class="privacy-note">Allow camera and microphone access to join the live discussion. Speech transcription works in supported browsers such as Chrome and Edge.</p>
+          <div class="actions">
+            <button class="button button-primary" id="join-room">Join meeting <span aria-hidden="true">→</span></button>
+          </div>
+        </div>
+        <label class="consent-row" for="transcript-consent">
+          <input id="transcript-consent" type="checkbox">
+          I understand that speech captions are shared with the room and the text transcript is sent to Google Gemini when the host ends the meeting.
+        </label>
+        <p class="status" id="setup-status" role="status"></p>
+      </section>
+
+      <section class="panel room-panel hidden" id="room">
+        <div class="room-heading">
+          <div>
+            <p class="eyebrow">LIVE DISCUSSION</p>
+            <h2 id="room-topic">Waiting for participants</h2>
+          </div>
+          <span class="live-label"><span class="live-dot"></span> LIVE</span>
+        </div>
+        <div class="invite-card hidden" id="invite-card">
+          <div><strong>Invite participants</strong><small>Share this link to let participants join.</small></div>
+          <div class="invite-link-row"><input id="invite-link" readonly aria-label="Participant meeting link"><button class="button button-secondary" id="copy-link">Copy link</button></div>
+        </div>
+        <div class="room-layout">
+          <section class="meeting-main">
+            <div class="video-grid" id="video-grid"></div>
+            <div class="meeting-controls">
+              <button class="control-button" id="toggle-mic" aria-pressed="false">Mute mic</button>
+              <button class="control-button" id="toggle-camera" aria-pressed="false">Turn camera off</button>
+              <span class="speech-status" id="speech-status">Connecting your camera and microphone…</span>
+              <button class="button button-danger hidden" id="end-room">End meeting</button>
+            </div>
+            <section class="conversation">
+              <div class="conversation-top">Live transcript <span class="prototype-tag">SPEECH RECOGNITION</span></div>
+              <div class="messages" id="messages" aria-live="polite"></div>
+            </section>
+          </section>
+          <aside class="room-sidebar">
+            <div class="sidebar-card">
+              <p class="eyebrow">MODERATOR</p>
+              <div class="moderator"><span class="moderator-avatar">A</span><div><strong>GD Meet Agent</strong><small>Welcome, topic, then listens quietly</small></div></div>
+            </div>
+            <div class="sidebar-card">
+              <p class="eyebrow">SESSION REPORT</p>
+              <p class="report-hint">After the host ends the meeting, get a transcript file and Gemini discussion feedback.</p>
+            </div>
+            <p class="small-note">Speech recognition depends on browser support and connection quality. For a more reliable multi-person meeting, deploy with HTTPS and a TURN server.</p>
+          </aside>
+        </div>
+        <section class="report hidden" id="report" aria-live="polite"></section>
+      </section>
+      <footer>GD Meet <span>·</span> Group discussion practice</footer>
+    </main>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
