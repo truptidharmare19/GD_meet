@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import hmac
 import logging
+import os
 import secrets
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -55,7 +59,9 @@ class Room:
         self.transcript: list[dict[str, str]] = []
         self.ai_analysis: dict[str, Any] | None = None
         self.ai_analysis_error: str | None = None
+        self.transcript_file_error: str | None = None
         self.started = False
+        self.topic_announced = False
         self.ended = False
         self.lock = asyncio.Lock()
 
@@ -113,24 +119,134 @@ def build_report(room: Room) -> dict[str, Any]:
         ),
         "ai_analysis": room.ai_analysis,
         "ai_analysis_error": room.ai_analysis_error,
+        "transcript_file_error": room.transcript_file_error,
     }
+
+
+def append_transcript_file(room: Room) -> None:
+    transcript_path = BASE_DIR.parent / "transcript.txt"
+    lines = [
+        "",
+        "=" * 72,
+        f"Meeting {room.id} | {datetime.now().astimezone().isoformat()}",
+        f"Topic: {room.topic}",
+        "",
+    ]
+    lines.extend(
+        f"[{entry['timestamp']}] {entry['speaker']}: {entry['text']}"
+        for entry in room.transcript
+    )
+    with transcript_path.open("a", encoding="utf-8", newline="\n") as transcript_file:
+        transcript_file.write("\n".join(lines))
+        transcript_file.write("\n")
+
+
+def append_report_file(room: Room) -> None:
+    report_path = BASE_DIR.parent / "transcript.txt"
+    lines = [
+        "",
+        "=" * 72,
+        f"Discussion report | Meeting {room.id}",
+        f"Topic: {room.topic}",
+        "",
+    ]
+    if room.ai_analysis:
+        lines.extend(
+            [
+                "Discussion summary:",
+                room.ai_analysis["summary"],
+                "",
+                "Key points:",
+                *(f"- {point}" for point in room.ai_analysis["key_points"]),
+                "",
+                "Participant report cards:",
+            ]
+        )
+        for evaluation in room.ai_analysis["participant_evaluations"]:
+            lines.extend(
+                [
+                    "",
+                    (
+                        f"{evaluation['participant']} — "
+                        f"{evaluation['discussion_score']}/100"
+                    ),
+                    f"Evidence: {' '.join(evaluation['evidence'])}",
+                    f"Strengths: {' '.join(evaluation['strengths'])}",
+                    f"To improve: {' '.join(evaluation['suggestions'])}",
+                ]
+            )
+    else:
+        lines.extend(
+            [
+                "Participant report cards could not be generated.",
+                room.ai_analysis_error or "AI feedback was unavailable.",
+            ]
+        )
+
+    with report_path.open("a", encoding="utf-8", newline="\n") as report_file:
+        report_file.write("\n".join(lines))
+        report_file.write("\n")
 
 
 @app.get("/")
 async def home() -> FileResponse:
-    return FileResponse(BASE_DIR / "static" / "index.html")
+    return FileResponse(
+        BASE_DIR / "static" / "index.html",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/join/{room_id}")
 async def join_page(room_id: str) -> FileResponse:
     if room_id not in rooms:
         raise HTTPException(status_code=404, detail="Meeting not found.")
-    return FileResponse(BASE_DIR / "static" / "index.html")
+    return FileResponse(
+        BASE_DIR / "static" / "index.html",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/ice-servers")
+async def get_ice_servers() -> dict[str, list[dict[str, Any]]]:
+    ice_servers: list[dict[str, Any]] = [
+        {"urls": ["stun:stun.l.google.com:19302"]}
+    ]
+    turn_urls = [
+        url.strip()
+        for url in os.getenv("TURN_URLS", "").split(",")
+        if url.strip()
+    ]
+    if not turn_urls:
+        return {"ice_servers": ice_servers}
+
+    shared_secret = os.getenv("TURN_SHARED_SECRET", "")
+    if not shared_secret:
+        raise HTTPException(
+            status_code=503,
+            detail="TURN_URLS is configured without TURN_SHARED_SECRET.",
+        )
+
+    username = f"{int(time.time()) + 3600}:gd-meet"
+    credential = base64.b64encode(
+        hmac.new(
+            shared_secret.encode(),
+            username.encode(),
+            hashlib.sha1,
+        ).digest()
+    ).decode()
+    ice_servers.append(
+        {
+            "urls": turn_urls,
+            "username": username,
+            "credential": credential,
+        }
+    )
+    return {"ice_servers": ice_servers}
 
 
 @app.post("/api/rooms", status_code=201)
@@ -191,7 +307,8 @@ async def room_socket(
             {
                 "type": "room_info",
                 "started": room.started,
-                "topic": room.topic if room.started else None,
+                "topic": room.topic if room.topic_announced else None,
+                "waiting_for_confirmation": room.started and not room.topic_announced,
             }
         )
         await broadcast(
@@ -209,11 +326,14 @@ async def room_socket(
                 {
                     "type": "discussion_started",
                     "participant_count": len(room.connections),
+                    "waiting_for_confirmation": True,
                 },
             )
-            greeting = "Welcome everyone! I am your GD Meet moderator."
-            topic_announcement = f"Today's group discussion topic is: {room.topic}"
-            for text in (greeting, topic_announcement):
+            moderator_messages = (
+                "Welcome everyone! I am your GD Meet moderator.",
+                "Has everyone joined the group discussion? Please say yes when everyone is here.",
+            )
+            for text in moderator_messages:
                 room.transcript.append(
                     {"timestamp": timestamp(), "speaker": "Agent", "text": text}
                 )
@@ -245,6 +365,44 @@ async def room_socket(
                 entry = {"timestamp": timestamp(), "speaker": participant.name, "text": text}
                 room.transcript.append(entry)
                 await broadcast(room, {"type": "transcript", **entry})
+                normalized = text.rstrip(" .!?").casefold()
+                affirmation_tokens = {
+                    "yes",
+                    "yeah",
+                    "yep",
+                    "yes we have joined",
+                    "yes we have joined the meeting",
+                    "we have joined",
+                    "we joined",
+                    "everyone joined",
+                    "everyone has joined",
+                }
+                if (
+                    room.started
+                    and not room.topic_announced
+                    and (
+                        normalized in affirmation_tokens
+                        or any(
+                            phrase in normalized
+                            for phrase in (
+                                "yes we have joined",
+                                "we have joined",
+                                "everyone joined",
+                                "everyone has joined",
+                            )
+                        )
+                    )
+                ):
+                    async with room.lock:
+                        if not room.topic_announced and not room.ended:
+                            room.topic_announced = True
+                            announcement = {
+                                "timestamp": timestamp(),
+                                "speaker": "Agent",
+                                "text": f"Today's group discussion topic is: {room.topic}",
+                            }
+                            room.transcript.append(announcement)
+                            await broadcast(room, {"type": "agent", "text": announcement["text"]})
             elif message_type in {"offer", "answer", "ice_candidate"}:
                 target_id = str(payload.get("target_id", ""))
                 target = next(
@@ -287,6 +445,15 @@ async def room_socket(
                 room.transcript.append(thank_you)
                 await broadcast(room, {"type": "agent", "text": thank_you["text"]})
                 try:
+                    await asyncio.to_thread(append_transcript_file, room)
+                    await broadcast(room, {"type": "transcript_saved"})
+                except OSError as error:
+                    room.transcript_file_error = (
+                        "Could not write transcript.txt in the project folder. "
+                        "Check that the folder is writable."
+                    )
+                    logger.exception("Could not save transcript for room %s", room.id)
+                try:
                     room.ai_analysis = await asyncio.to_thread(
                         analyze_discussion,
                         room.topic,
@@ -296,6 +463,23 @@ async def room_socket(
                 except GeminiAnalysisError as error:
                     room.ai_analysis_error = str(error)
                     logger.warning("Gemini analysis unavailable for room %s: %s", room.id, error)
+                except Exception:
+                    room.ai_analysis_error = (
+                        "Gemini is temporarily unavailable. The transcript was saved, "
+                        "but AI feedback could not be generated."
+                    )
+                    logger.exception(
+                        "Unexpected Gemini analysis failure for room %s",
+                        room.id,
+                    )
+                try:
+                    await asyncio.to_thread(append_report_file, room)
+                except OSError:
+                    room.transcript_file_error = (
+                        "Could not save the discussion report to transcript.txt. "
+                        "Check that the project folder is writable."
+                    )
+                    logger.exception("Could not save report for room %s", room.id)
                 await broadcast(room, {"type": "report", "report": build_report(room)})
                 for connection in tuple(room.connections):
                     await connection.close(code=1000, reason="Meeting ended")

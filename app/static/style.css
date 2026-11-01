@@ -80,6 +80,7 @@ input:focus { border-color: #748cf3; box-shadow: 0 0 0 3px rgba(99, 124, 255, .1
 .agent-tile small { color: #9eacc1; font-size: 9px; }
 .agent-avatar { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: #536ff0; color: #fff; font-size: 19px; font-weight: 700; }
 .video-name { position: absolute; bottom: 8px; left: 8px; max-width: calc(100% - 16px); overflow: hidden; padding: 5px 8px; border-radius: 6px; background: rgba(5, 9, 15, .78); color: #edf2fb; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.remote-audio { display: none; }
 .meeting-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 0; }
 .control-button { padding: 9px 12px; border: 1px solid #38465b; border-radius: 9px; background: #1a2535; color: #e6ecf7; font-size: 10px; font-weight: 700; }
 .speech-status { flex: 1; min-width: 150px; color: #8998ad; font-size: 10px; }

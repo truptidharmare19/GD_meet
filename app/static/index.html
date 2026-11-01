@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#111827">
     <title>GD Meet | Group discussion room</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=7">
   </head>
   <body>
     <main class="shell">
@@ -17,7 +17,7 @@
       <section class="intro">
         <p class="eyebrow">PRACTICE TOGETHER</p>
         <h1>Make every discussion<br><span>count.</span></h1>
-        <p class="intro-copy">Create a meeting and share one link. Your moderator will welcome the group, introduce the topic, listen quietly, and prepare the transcript and report when you end the discussion.</p>
+        <p class="intro-copy">Create a meeting and share one link. Your moderator will welcome the group, check that everyone has joined, announce the topic after someone confirms, listen quietly, and prepare the report when you end the discussion.</p>
       </section>
 
       <section class="panel setup-panel" id="setup">
@@ -31,8 +31,8 @@
         <label for="participant-name">Your name</label>
         <input id="participant-name" maxlength="40" placeholder="e.g. Alex" autocomplete="name">
         <div id="create-fields">
-          <p class="privacy-note">The moderator will choose and announce a discussion topic after you start the meeting.</p>
-          <p class="privacy-note">Speech recognition runs in each participant's browser and may be processed by the browser provider. When you end the meeting, the resulting text transcript is sent to Google Gemini for feedback. Avoid sharing sensitive personal information.</p>
+          <p class="privacy-note">After at least two people join, the moderator will welcome the group and ask if everyone has arrived. Say “yes” when ready to hear the discussion topic.</p>
+          <p class="privacy-note">Speech recognition runs in each participant's browser and may be processed by the browser provider. When you end the meeting, captions are appended to transcript.txt in the project folder and the transcript is sent to Google Gemini for feedback. Avoid sharing sensitive personal information.</p>
           <div class="actions">
             <button class="button button-primary" id="create-room">Create meeting <span aria-hidden="true">→</span></button>
           </div>
@@ -45,7 +45,7 @@
         </div>
         <label class="consent-row" for="transcript-consent">
           <input id="transcript-consent" type="checkbox">
-          I understand that speech captions are shared with the room and the text transcript is sent to Google Gemini when the host ends the meeting.
+          I understand that speech recognition creates a transcript saved to transcript.txt in the project folder, and that the transcript is sent to Google Gemini when the host ends the meeting.
         </label>
         <p class="status" id="setup-status" role="status"></p>
       </section>
@@ -66,15 +66,13 @@
           <section class="meeting-main">
             <div class="video-grid" id="video-grid"></div>
             <div class="meeting-controls">
+              <button class="control-button" id="enable-audio" type="button">Enable audio</button>
               <button class="control-button" id="toggle-mic" aria-pressed="false">Mute mic</button>
               <button class="control-button" id="toggle-camera" aria-pressed="false">Turn camera off</button>
+              <button class="control-button" id="toggle-screen-share" aria-pressed="false">Share screen</button>
               <span class="speech-status" id="speech-status">Connecting your camera and microphone…</span>
               <button class="button button-danger hidden" id="end-room">End meeting</button>
             </div>
-            <section class="conversation">
-              <div class="conversation-top">Live transcript <span class="prototype-tag">SPEECH RECOGNITION</span></div>
-              <div class="messages" id="messages" aria-live="polite"></div>
-            </section>
           </section>
           <aside class="room-sidebar">
             <div class="sidebar-card">
@@ -92,6 +90,6 @@
       </section>
       <footer>GD Meet <span>·</span> Group discussion practice</footer>
     </main>
-    <script src="/static/app.js" defer></script>
+    <script src="/static/app.js?v=8" defer></script>
   </body>
 </html>
